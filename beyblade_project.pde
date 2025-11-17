@@ -1,211 +1,249 @@
 /*
- * PROJET MODÉLISATION MATHÉMATIQUE - R5.12
+ * MODÉLISATION 3D D'UNE TOUPIE BEYBLADE
  * 
- * PROBLÉMATIQUE : 
- * Quelle toupie gagne : la légère et rapide ou la lourde et lente ?
+ * Basé sur vos notes au tableau :
+ * - (theta) : angle d'inclinaison de la toupie
+ * - (phi) : angle de rotation autour de l'axe z
+ * - (omega) : vitesse angulaire de rotation
  * 
- * MODÈLE SIMPLE :
- * - 2 toupies qui partent du centre
- * - Elles ralentissent à cause du frottement
- * - Elles rebondissent sur les bords et entre elles
- * - L'arène a une petite pente vers le centre
  */
 
-// === PARAMÈTRES ===
-double dt = 0.01;              // Petit pas de temps
+// PARAMÈTRES 
+double dt = 0.01;              // Pas de temps
 double t = 0;                  // Chronomètre
-int viewSize = 800;            // Taille de la fenêtre
-double arenaRadius = 300;      // Taille de l'arène
 
-double frottement = 0.50;      // Ralentissement (PETIT = dure longtemps)
-double pente = 200;             // Force qui pousse vers le centre (comme un bol)
+// ÉTAT DE LA TOUPIE 
+// Position du centre de masse
+double x = 0, y = 0, z = 0;
 
-// === UNE TOUPIE ===
-class Beyblade {
-  double x, y;           // Position
-  double vx, vy;         // Vitesse
-  double rotation;       // Vitesse de rotation
-  double angle;          // Angle pour dessiner
-  double masse;          // Poids
-  double rayon;          // Taille
-  int couleur;           // Couleur
-  boolean tourne;        // Est-ce qu'elle tourne encore ?
-  
-  Beyblade(double vitesse, double rot, double m, double r, int c) {
-    // Départ aléatoire près du bord de l'arène
-    double angleDepart = random(0, TWO_PI);
-    double distanceDepart = arenaRadius * 0.7;  // À 70% du rayon
-    x = distanceDepart * cos((float)angleDepart);
-    y = distanceDepart * sin((float)angleDepart);
-    
-    // Direction aléatoire vers le centre (angle opposé)
-    double direction = angleDepart + PI + random(-0.5, 0.5);
-    vx = vitesse * cos((float)direction);
-    vy = vitesse * sin((float)direction);
-    
-    rotation = rot;
-    angle = 0;
-    masse = m;
-    rayon = r;
-    couleur = c;
-    tourne = true;
-  }
-  
-  void bouger() {
-    if (!tourne) return;
-    
-    // La pente pousse vers le centre
-    double distance = sqrt((float)(x*x + y*y));
-    if (distance > 0) {
-      vx -= pente * x / distance * dt;
-      vy -= pente * y / distance * dt;
-    }
-    
-    // Le frottement ralentit
-    vx -= frottement * vx * dt;
-    vy -= frottement * vy * dt;
-    rotation -= frottement * rotation * dt;
-    
-    // Avancer
-    x += vx * dt;
-    y += vy * dt;
-    angle += rotation * dt;
-    
-    // Rebondir sur le bord
-    if (distance + rayon > arenaRadius) {
-      double nx = x / distance;
-      double ny = y / distance;
-      double rebond = vx * nx + vy * ny;
-      vx -= 2 * rebond * nx;
-      vy -= 2 * rebond * ny;
-      x = nx * (arenaRadius - rayon);
-      y = ny * (arenaRadius - rayon);
-    }
-    
-    // Arrêter si trop lent
-    if (abs((float)rotation) < 0.10) {
-      tourne = false;
-    }
-  }
-  
-  void dessiner() {
-    fill(couleur, tourne ? 255 : 100);
-    stroke(255);
-    strokeWeight(2);
-    circle((float)x, (float)y, (float)(2*rayon));
-    
-    if (tourne) {
-      pushMatrix();
-      translate((float)x, (float)y);
-      rotate((float)angle);
-      line(0, 0, (float)rayon, 0);
-      popMatrix();
-    }
-  }
-}
+// Angles
+double theta = 0.1;            // Inclinaison (0 = vertical, PI/2 = horizontal)
+double phi = 0;                // Rotation autour de z
 
-Beyblade toupie1, toupie2;
+// Vitesses angulaires
+double omega_phi = 40;         // Vitesse de rotation (tourne sur elle-même)
+double omega_theta = 0;        // Vitesse d'inclinaison
 
-void settings() {
-  size(viewSize, viewSize);
-}
+// Paramètres physiques
+double m = 1.0;                // Masse
+double g = 9.81;               // Gravité
+double L = 50;                 // Longueur (hauteur de la toupie)
+double C = 10;                 // Constante liée au moment d'inertie
+double A = 5;                  // Autre constante d'inertie
+
+// Frottements
+double friction_phi = 0.1;     // Frottement rotation
+double friction_theta = 0.5;   // Frottement inclinaison
 
 void setup() {
-  // Toupie ROUGE : légère et rapide
-  toupie1 = new Beyblade(random(60, 100), random(40, 60), 0.8, 25, color(255, 50, 50));
-  
-  // Toupie BLEUE : lourde et lente
-  toupie2 = new Beyblade(random(40, 70), random(20, 40), 1.5, 35, color(50, 100, 255));
-  
-  t = 0;
+  size(800, 800, P3D);
 }
 
 void draw() {
-  background(20);
-  translate(viewSize/2, viewSize/2);
-  scale(1, -1);
+  background(30);
   
-  // Dessiner l'arène (cercles pour faire la pente)
-  for (int i = 5; i > 0; i--) {
-    fill(30 + i*8);
-    noStroke();
-    circle(0, 0, 2*(float)arenaRadius * i/5);
+  // CAMÉRA 
+  camera(200, -100, 200, 0, 0, 0, 0, 0, -1);
+  lights();
+  
+  // SOL
+  fill(50);
+  pushMatrix();
+  translate(0, 0, 0);
+  box(600, 600, 1);
+  popMatrix();
+  
+  // MISE À JOUR PHYSIQUE
+  
+  // Équation du mouvement pour theta (simplifiée de vos notes)
+  // theta_dot_dot = (m*g*L*sin(theta) - A*phi_dot*omega*cos(theta)*sin(theta)) / C
+  double acceleration_theta = (m * g * L * sin((float)theta) 
+                               - A * omega_phi * omega_phi * cos((float)theta) * sin((float)theta)) / C;
+  
+  // Frottement sur theta
+  acceleration_theta -= friction_theta * omega_theta;
+  
+  // Mise à jour de omega_theta
+  omega_theta += acceleration_theta * dt;
+  
+  // Mise à jour de theta
+  theta += omega_theta * dt;
+  
+  // Limiter theta entre 0 et PI/2 (la toupie ne se retourne pas)
+  if (theta < 0.05) theta = 0.05;
+  if (theta > PI/2 - 0.1) {
+    theta = PI/2 - 0.1;  // Toupie couchée = arrêtée
+    omega_phi = 0;
+    omega_theta = 0;
   }
   
-  // Bord de l'arène
-  noFill();
-  stroke(150);
-  strokeWeight(4);
-  circle(0, 0, 2*(float)arenaRadius);
-  
-  // Faire bouger les toupies
-  toupie1.bouger();
-  toupie2.bouger();
-  
-  // Vérifier si elles se touchent
-  double dx = toupie2.x - toupie1.x;
-  double dy = toupie2.y - toupie1.y;
-  double distance = sqrt((float)(dx*dx + dy*dy));
-  
-  if (distance < toupie1.rayon + toupie2.rayon && toupie1.tourne && toupie2.tourne) {
-    // Elles se touchent ! Collision avec les masses
-    double nx = dx / distance;
-    double ny = dy / distance;
-    
-    // Vitesses dans la direction de collision
-    double v1n = toupie1.vx * nx + toupie1.vy * ny;
-    double v2n = toupie2.vx * nx + toupie2.vy * ny;
-    
-    // Seulement si elles s'approchent
-    if (v1n - v2n > 0) {
-      // Conservation de la quantité de mouvement (plus c'est lourd, moins ça bouge)
-      double m1 = toupie1.masse;
-      double m2 = toupie2.masse;
-      double somme = m1 + m2;
-      
-      // Nouvelles vitesses après collision (avec rebond fort)
-      double v1n_new = ((m1 - m2) * v1n + 2 * m2 * v2n) / somme;
-      double v2n_new = ((m2 - m1) * v2n + 2 * m1 * v1n) / somme;
-      
-      // Appliquer les nouvelles vitesses
-      toupie1.vx += (v1n_new - v1n) * nx;
-      toupie1.vy += (v1n_new - v1n) * ny;
-      toupie2.vx += (v2n_new - v2n) * nx;
-      toupie2.vy += (v2n_new - v2n) * ny;
-      
-      // Séparer les toupies pour éviter qu'elles restent collées
-      double overlap = (toupie1.rayon + toupie2.rayon - distance) / 2;
-      toupie1.x -= overlap * nx;
-      toupie1.y -= overlap * ny;
-      toupie2.x += overlap * nx;
-      toupie2.y += overlap * ny;
-      
-      // La rotation diminue un peu au choc (mais pas trop)
-      toupie1.rotation *= 0.98;
-      toupie2.rotation *= 0.98;
-    }
+  // Si la toupie tourne trop lentement, elle commence à tomber
+  if (omega_phi < 5) {
+    omega_theta += 2.0 * dt;  // Accélère la chute
+    omega_phi -= 0.5 * dt;    // Ralentit encore plus
+    if (omega_phi < 0) omega_phi = 0;
   }
   
-  // Dessiner les toupies
-  toupie1.dessiner();
-  toupie2.dessiner();
+  // Frottement sur la rotation phi (plus fort quand elle penche)
+  double friction_actuelle = friction_phi * (1 + 3 * theta);
+  omega_phi -= friction_actuelle * omega_phi * dt;
   
-  // Afficher les infos
-  scale(1, -1);
+  // Mise à jour de phi
+  phi += omega_phi * dt;
+  
+  // Si la toupie tourne trop lentement, elle tombe
+  if (omega_phi < 1) {
+    omega_theta += 0.5 * dt;  // Accélère la chute
+  }
+  
+  // DESSIN DE LA TOUPIE
+  pushMatrix();
+  
+  // Position du point de contact avec le sol (la pointe)
+  translate((float)x, (float)y, (float)z);
+  
+  // Rotation de précession (autour de z)
+  rotateZ((float)phi);
+  
+  // Inclinaison
+  rotateY((float)theta);
+  
+  // FORME DE TOUPIE RÉALISTE
+  noStroke();
+  
+  // LA POINTE 
+  fill(100, 100, 100);
+  pushMatrix();
+  rotateX(PI);
+  drawCone(4, 12, 20);  // Petite pointe métallique
+  popMatrix();
+  
+  // LE GROS DISQUE ROND 
+  fill(100, 150, 255);
+  pushMatrix();
+  translate(0, 0, -25);  // Monter un peu
+  sphere(30);  // Grande sphère aplatie = le corps rond
+  popMatrix();
+  
+  // Aplatir le disque avec un cylindre
+  fill(80, 130, 230);
+  pushMatrix();
+  translate(0, 0, -25);
+  rotateX(PI/2);
+  cylinder(32, 10);  // Disque plat
+  popMatrix();
+  
+  // LE DESSUS
+  fill(150, 170, 255);
+  pushMatrix();
+  translate(0, 0, -35);
+  rotateX(PI/2);
+  cylinder(12, 15);
+  popMatrix();
+  
+  // Ligne pour voir la rotation
+  stroke(255, 200, 0);
+  strokeWeight(3);
+  line(0, 0, -25, 32, 0, -25);
+  
+  popMatrix();
+  
+  // AFFICHAGE DES INFOS 
+  camera();
   fill(255);
   textAlign(LEFT);
-  text("Temps: " + nf((float)t, 1, 1) + "s", -280, -280);
+  text("Temps: " + nf((float)t, 1, 1) + "s", 10, 20);
+  text("Theta (inclinaison): " + nf((float)degrees((float)theta), 1, 1) + "°", 10, 40);
+  text("Omega_phi (rotation): " + nf((float)omega_phi, 1, 1) + " rad/s", 10, 60);
   
-  String etat = "";
-  if (toupie1.tourne && toupie2.tourne) etat = "Les 2 tournent";
-  else if (toupie1.tourne) etat = "Rouge gagne !";
-  else if (toupie2.tourne) etat = "Bleue gagne !";
-  else etat = "Match nul";
-  text(etat, -280, -260);
+  if (omega_phi < 1) {
+    text("La toupie tombe !", 10, 80);
+    fill(255, 0, 0);
+  }
+  
+  // État de la toupie
+  if (theta > 1.0) {
+    fill(255, 100, 0);
+    text("ATTENTION : Toupie instable !", 10, 100);
+  }
+  if (theta > 1.3) {
+    fill(255, 0, 0);
+    text("TOMBÉE !", 10, 120);
+  }
   
   t += dt;
 }
 
+// Fonction pour dessiner un cône
+void drawCone(float r, float h, int sides) {
+  float angle = TWO_PI / sides;
+  
+  // Côtés du cône
+  beginShape(TRIANGLES);
+  for (int i = 0; i < sides; i++) {
+    float x1 = cos(angle * i) * r;
+    float y1 = sin(angle * i) * r;
+    float x2 = cos(angle * (i + 1)) * r;
+    float y2 = sin(angle * (i + 1)) * r;
+    
+    vertex(0, 0, h);      // Pointe
+    vertex(x1, y1, 0);    // Base
+    vertex(x2, y2, 0);    // Base
+  }
+  endShape();
+  
+  // Base du cône
+  beginShape(TRIANGLE_FAN);
+  vertex(0, 0, 0);
+  for (int i = sides; i >= 0; i--) {
+    float x = cos(angle * i) * r;
+    float y = sin(angle * i) * r;
+    vertex(x, y, 0);
+  }
+  endShape();
+}
+
+// Fonction pour dessiner un cylindre
+void cylinder(float r, float h) {
+  int sides = 30;
+  float angle = TWO_PI / sides;
+  
+  // Dessiner les côtés
+  beginShape(QUAD_STRIP);
+  for (int i = 0; i <= sides; i++) {
+    float x = cos(angle * i) * r;
+    float y = sin(angle * i) * r;
+    vertex(x, y, 0);
+    vertex(x, y, h);
+  }
+  endShape();
+  
+  // Dessiner le dessus
+  beginShape(TRIANGLE_FAN);
+  vertex(0, 0, h);
+  for (int i = 0; i <= sides; i++) {
+    float x = cos(angle * i) * r;
+    float y = sin(angle * i) * r;
+    vertex(x, y, h);
+  }
+  endShape();
+  
+  // Dessiner le dessous
+  beginShape(TRIANGLE_FAN);
+  vertex(0, 0, 0);
+  for (int i = sides; i >= 0; i--) {
+    float x = cos(angle * i) * r;
+    float y = sin(angle * i) * r;
+    vertex(x, y, 0);
+  }
+  endShape();
+}
+
 void mousePressed() {
-  setup();
+  // Relancer avec des valeurs aléatoires
+  theta = random(0.05, 0.3);
+  omega_phi = random(30, 50);
+  omega_theta = 0;
+  phi = 0;
+  t = 0;
 }
