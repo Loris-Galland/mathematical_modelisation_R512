@@ -17,12 +17,12 @@ double t = 0;                  // Chronomètre
 double x = 0, y = 0, z = 0;
 
 // Angles
-double theta = 0.1;            // Inclinaison (0 = vertical, PI/2 = horizontal)
+double theta = 0;            // Inclinaison (0 = vertical, PI/2 = horizontal)
 double phi = 0;                // Rotation autour de z
 
 // Vitesses angulaires
 double omega_phi = 40;         // Vitesse de rotation (tourne sur elle-même)
-double omega_theta = 0;        // Vitesse d'inclinaison
+double omega_theta = 10;        // Vitesse d'inclinaison
 
 // Paramètres physiques
 double m = 1.0;                // Masse
@@ -32,8 +32,8 @@ double C = 10;                 // Constante liée au moment d'inertie
 double A = 5;                  // Autre constante d'inertie
 
 // Frottements
-double friction_phi = 0.1;     // Frottement rotation
-double friction_theta = 0.5;   // Frottement inclinaison
+double friction_phi = 0.;     // Frottement rotation
+double friction_theta = 0.;   // Frottement inclinaison
 
 void setup() {
   size(800, 800, P3D);
@@ -48,10 +48,7 @@ void draw() {
   
   // SOL
   fill(50);
-  pushMatrix();
-  translate(0, 0, 0);
   box(600, 600, 1);
-  popMatrix();
   
   // MISE À JOUR PHYSIQUE
   
@@ -107,7 +104,21 @@ void draw() {
   
   // Inclinaison
   rotateY((float)theta);
+   // LA POINTE 
+ fill(100, 100, 100);
+  pushMatrix();
+  fill(150, 170, 255);
+  translate(0,0,(float) L);
+  rotateX(PI);
+  drawCone(4,(float)  L, 10);  // Petite pointe métallique
+  popMatrix();
   
+  translate(0,0,(float) L);
+  // LE DESSUS
+  fill(150, 170, 255);
+  cylinder(20, 4);
+  popMatrix();
+  /*
   // FORME DE TOUPIE RÉALISTE
   noStroke();
   
@@ -120,7 +131,6 @@ void draw() {
   
   // LE GROS DISQUE ROND 
   fill(100, 150, 255);
-  pushMatrix();
   translate(0, 0, -25);  // Monter un peu
   sphere(30);  // Grande sphère aplatie = le corps rond
   popMatrix();
@@ -145,9 +155,9 @@ void draw() {
   stroke(255, 200, 0);
   strokeWeight(3);
   line(0, 0, -25, 32, 0, -25);
-  
+ 
   popMatrix();
-  
+  */
   // AFFICHAGE DES INFOS 
   camera();
   fill(255);
